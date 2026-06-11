@@ -27,6 +27,8 @@
   const Input = {
     keys: new Set(),
     keyEdges: new Set(),
+    touch: { left: false, right: false, soft: false, edges: new Set() },
+    touchPauseEdge: false,
     padOrder: [],          // 接続順の gamepad index
     padPrev: {},           // index -> 前フレームのボタン押下配列
     padEdges: {},          // index -> 今フレームに押された button index の Set
@@ -48,6 +50,42 @@
       });
       root.addEventListener("gamepaddisconnected", (e) => {
         this.padOrder = this.padOrder.filter((i) => i !== e.gamepad.index);
+      });
+      this.bindTouchUI();
+    },
+
+    isTouchDevice() {
+      return ("ontouchstart" in root) || (navigator.maxTouchPoints || 0) > 0;
+    },
+
+    // タッチ操作ボタン（1P専用）。押下中は held、押した瞬間は edge として扱う
+    bindTouchUI() {
+      const doc = root.document;
+      if (!doc) return;
+      doc.querySelectorAll("#touch-controls .tc-btn").forEach((btn) => {
+        const act = btn.dataset.tc;
+        const press = (e) => {
+          e.preventDefault();
+          btn.classList.add("tc-on");
+          if (act === "left" || act === "right" || act === "soft") {
+            this.touch[act] = true;
+            this.touch.edges.add(act); // 短タップでも1フレームは押下扱いにする
+          } else if (act === "pause") {
+            this.touchPauseEdge = true;
+          } else {
+            this.touch.edges.add(act); // hard / cw / ccw / hold
+          }
+        };
+        const release = (e) => {
+          if (e) e.preventDefault();
+          btn.classList.remove("tc-on");
+          if (act === "left" || act === "right" || act === "soft") this.touch[act] = false;
+        };
+        btn.addEventListener("pointerdown", press);
+        btn.addEventListener("pointerup", release);
+        btn.addEventListener("pointercancel", release);
+        btn.addEventListener("pointerleave", release);
+        btn.addEventListener("contextmenu", (e) => e.preventDefault());
       });
     },
 
@@ -88,6 +126,8 @@
 
     endFrame() {
       this.keyEdges.clear();
+      this.touch.edges.clear();
+      this.touchPauseEdge = false;
       for (const k in this.padEdges) this.padEdges[k].clear();
       for (const k in this.padAxisEdges) {
         this.padAxisEdges[k] = { up: false, down: false, left: false, right: false };
@@ -118,7 +158,7 @@
       a.right = this.keyEdge(["ArrowRight", "KeyD"]);
       a.confirm = this.keyEdge(["Enter", "Space", "KeyG", "KeyK"]);
       a.back = this.keyEdge(["Escape", "Backspace", "KeyF", "KeyL"]);
-      a.pause = this.keyEdge(["Escape", "KeyP"]);
+      a.pause = this.keyEdge(["Escape", "KeyP"]) || this.touchPauseEdge;
       for (const idx of this.padOrder) {
         const gp = this.pads[idx];
         if (!gp) continue;
@@ -145,14 +185,16 @@
     const gp = Input.padForSlot(this.padSlot);
     const ax = gp ? (Input.padAxisPrev[gp.index] || { x: 0, y: 0 }) : { x: 0, y: 0 };
     const axEdge = gp ? (Input.padAxisEdges[gp.index] || {}) : {};
+    // タッチ操作は常に1P扱い
+    const tc = this.padSlot === 0 ? Input.touch : null;
     return {
-      left: Input.keyHeld(km.left) || Input.padBtnHeld(gp, [PAD.left]) || ax.x < -AXIS_TH,
-      right: Input.keyHeld(km.right) || Input.padBtnHeld(gp, [PAD.right]) || ax.x > AXIS_TH,
-      soft: Input.keyHeld(km.soft) || Input.padBtnHeld(gp, [PAD.down]) || ax.y > AXIS_TH,
-      hard: Input.keyEdge(km.hard) || Input.padBtnEdge(gp, [PAD.up]) || !!axEdge.up,
-      rotCW: Input.keyEdge(km.rotCW) || Input.padBtnEdge(gp, PAD.rotCW),
-      rotCCW: Input.keyEdge(km.rotCCW) || Input.padBtnEdge(gp, PAD.rotCCW),
-      hold: Input.keyEdge(km.hold) || Input.padBtnEdge(gp, PAD.hold),
+      left: Input.keyHeld(km.left) || Input.padBtnHeld(gp, [PAD.left]) || ax.x < -AXIS_TH || !!(tc && (tc.left || tc.edges.has("left"))),
+      right: Input.keyHeld(km.right) || Input.padBtnHeld(gp, [PAD.right]) || ax.x > AXIS_TH || !!(tc && (tc.right || tc.edges.has("right"))),
+      soft: Input.keyHeld(km.soft) || Input.padBtnHeld(gp, [PAD.down]) || ax.y > AXIS_TH || !!(tc && (tc.soft || tc.edges.has("soft"))),
+      hard: Input.keyEdge(km.hard) || Input.padBtnEdge(gp, [PAD.up]) || !!axEdge.up || !!(tc && tc.edges.has("hard")),
+      rotCW: Input.keyEdge(km.rotCW) || Input.padBtnEdge(gp, PAD.rotCW) || !!(tc && tc.edges.has("cw")),
+      rotCCW: Input.keyEdge(km.rotCCW) || Input.padBtnEdge(gp, PAD.rotCCW) || !!(tc && tc.edges.has("ccw")),
+      hold: Input.keyEdge(km.hold) || Input.padBtnEdge(gp, PAD.hold) || !!(tc && tc.edges.has("hold")),
     };
   };
 

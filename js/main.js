@@ -1,14 +1,15 @@
 /* main.js — 全体統括
    メニュー / マッチ進行 / プレイヤーイベント→演出&音の配線 / メインループ
-   タイトル裏では COM vs COM のデモが流れる */
+   モード: solo（ひとりで） / com（対COM） / human（ふたりで） / attract（タイトル裏デモ）
+   画面向きに応じてレイアウトを切替（縦画面の対戦は盤面を縦積み） */
 (function () {
   "use strict";
 
-  const W = Renderer.W, H = Renderer.H, CELL = Renderer.CELL;
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
 
-  function resize() {
+  function resizeCanvas() {
+    const W = Renderer.W, H = Renderer.H;
     const scale = Math.min(innerWidth / W, innerHeight / H);
     const dpr = Math.min(devicePixelRatio || 1, 2);
     canvas.style.width = W * scale + "px";
@@ -17,8 +18,15 @@
     canvas.height = Math.round(H * scale * dpr);
     ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
   }
-  addEventListener("resize", resize);
-  resize();
+
+  function applyLayout() {
+    Renderer.configure({
+      players: Game.players.length || 2,
+      portrait: innerHeight > innerWidth,
+    });
+    resizeCanvas();
+  }
+  addEventListener("resize", applyLayout);
 
   function cellColorOf(v) {
     return v === "G" ? "#7c8699" : (Core.PIECES[v] ? Core.PIECES[v].color : "#ffffff");
@@ -26,7 +34,7 @@
 
   // ====== ゲーム状態 ======
   const Game = {
-    mode: "attract",        // attract | com | human
+    mode: "attract",        // attract | solo | com | human
     difficulty: 1,
     phase: "attract",       // attract | countdown | playing | over
     paused: false,
@@ -51,6 +59,13 @@
     setTimeout(() => { if (id === Game.matchId) fn(); }, sec * 1000);
   }
 
+  function bestScore() {
+    try { return +(localStorage.getItem("ntb-best") || 0); } catch (e) { return 0; }
+  }
+  function saveBestScore(v) {
+    try { localStorage.setItem("ntb-best", String(v)); } catch (e) { /* private mode等 */ }
+  }
+
   // ====== プレイヤーイベント配線 ======
   function makeEvents(idx) {
     const oppIdx = 1 - idx;
@@ -69,17 +84,19 @@
         sfx("hardDrop");
         FX.shake(Math.min(2 + dist * 0.18, 5), 0.12);
         if (!p.active) return;
+        const cell = Renderer.cellSize(idx);
         const color = Core.PIECES[p.active.type].color;
         for (const [cx, cy] of Core.cellsOf(p.active.type, p.active.rot, p.active.x, p.active.y)) {
           if (cy < Core.HIDDEN_ROWS) continue;
           const s = Renderer.cellToScreen(idx, cx, cy);
-          FX.burst(s.x + CELL / 2, s.y + CELL / 2, color, 3, 130, { g: -300, life: 0.3, size: 4, sparkRatio: 0.6 });
+          FX.burst(s.x + cell / 2, s.y + cell / 2, color, 3, 130, { g: -300, life: 0.3, size: 4, sparkRatio: 0.6 });
         }
       },
 
       onClear(p, info, rows, rowsData) {
         const rect = Renderer.boardRect(idx);
-        const rowYs = rows.map((r) => Renderer.rowToScreenY(r));
+        const cell = Renderer.cellSize(idx);
+        const rowYs = rows.map((r) => Renderer.rowToScreenY(idx, r));
         const colors = [];
         rowsData.forEach((row) => row.forEach((v) => { if (v) colors.push(cellColorOf(v)); }));
         const cx = rect.x + rect.w / 2;
@@ -93,21 +110,21 @@
           FX.flash("#ffd700", 0.45, 0.7);
           FX.ringShock(cx, cy, "#ffd700", 600, 12);
           FX.burst(cx, cy, ["#ffd700", "#ffffff", "#ffe98a"], 140, 760, { g: 420, life: 1.3, size: 7, sparkRatio: 0.6 });
-          FX.banner("PERFECT CLEAR!", { x: cx, y: rect.y + rect.h * 0.35, size: 64, color: "#ffe98a", glow: "#ffb700", dur: 1.5 });
+          FX.banner("PERFECT CLEAR!", { x: cx, y: rect.y + rect.h * 0.35, size: Math.max(36, rect.w * 0.2), color: "#ffe98a", glow: "#ffb700", dur: 1.5 });
           FX.addEnergy(1);
           p.fxBorder = 1.4;
         } else if (info.lines === 4) {
           sfx("tetris");
           if (info.b2b) sfx("b2b");
-          FX.tetrisBlast(rect, rowYs, CELL, colors, { b2b: info.b2b });
+          FX.tetrisBlast(rect, rowYs, cell, colors, { b2b: info.b2b });
           p.fxBorder = 1.2;
         } else if (info.tspin) {
           sfx("tspin", info.lines);
           FX.shake(8 + info.lines * 3, 0.4);
           FX.flash("#c238ff", 0.3, 0.4);
-          FX.ringShock(cx, cy, "#c238ff", 320, 8);
+          FX.ringShock(cx, cy, "#c238ff", rect.w, 8);
           FX.burst(cx, cy, ["#c238ff", "#ff7df9", "#ffffff"], 50 + info.lines * 25, 480, { life: 0.9, size: 6, sparkRatio: 0.5 });
-          FX.banner(Core.clearName(info) + "!", { x: cx, y: cy - 40, size: 52, color: "#e29bff", glow: "#c238ff", sub: info.b2b ? "BACK-TO-BACK" : "", dur: 1.2 });
+          FX.banner(Core.clearName(info) + "!", { x: cx, y: cy - 40, size: Math.max(30, rect.w * 0.16), color: "#e29bff", glow: "#c238ff", sub: info.b2b ? "BACK-TO-BACK" : "", dur: 1.2 });
           p.fxBorder = 1;
         } else {
           sfx("clear", info.lines, info.combo);
@@ -116,11 +133,11 @@
             const sy = rowYs[ri];
             rowsData[ri].forEach((v, xCol) => {
               if (!v) return;
-              FX.cellShatter(rect.x + xCol * CELL, sy, CELL, cellColorOf(v), info.lines);
+              FX.cellShatter(rect.x + xCol * cell, sy, cell, cellColorOf(v), info.lines);
             });
           });
           if (info.lines >= 2) {
-            FX.banner(info.lines === 2 ? "DOUBLE" : "TRIPLE", { x: cx, y: cy - 30, size: 44, color: "#bfeaff", glow: "#19c8ff", dur: 0.8 });
+            FX.banner(info.lines === 2 ? "DOUBLE" : "TRIPLE", { x: cx, y: cy - 30, size: Math.max(26, rect.w * 0.14), color: "#bfeaff", glow: "#19c8ff", dur: 0.8 });
           }
         }
 
@@ -128,13 +145,26 @@
           FX.floatText(cx, rect.y + 60, info.combo + " REN!", "#ffe14d", 30 + Math.min(info.combo * 3, 24));
         }
 
+        // ソロ: 10ライン毎にレベルアップ
+        if (Game.mode === "solo") {
+          const newLv = Math.min(15, 1 + Math.floor(p.stats.cleared / 10));
+          if (newLv > Game.level) {
+            Game.level = newLv;
+            p.setLevel(newLv);
+            sfx("levelup");
+            FX.floatText(Renderer.W / 2, Renderer.H / 2 - 120, "LEVEL " + newLv + "!", "#7df9ff", 36);
+            FX.flash("#00f6ff", 0.12, 0.3);
+          }
+          return; // 攻撃送信なし
+        }
+
         // おじゃま送信（コメットが相手のメーターへ飛ぶ）
         const atk = info.attackAfterCancel;
-        if (atk > 0) {
+        const opp = Game.players[oppIdx];
+        if (atk > 0 && opp) {
           const target = Renderer.meterPos(oppIdx);
-          const accent = Renderer.LAYOUTS[idx].accent;
+          const accent = Renderer.layouts[idx].accent;
           FX.floatText(cx, cy - 90, "+" + atk + " 攻撃!", accent, 30);
-          const opp = Game.players[oppIdx];
           const mid = Game.matchId;
           FX.comet(cx, cy, target.x, target.y, accent, 0.55, () => {
             if (mid !== Game.matchId || !opp || opp.dead) return;
@@ -164,9 +194,11 @@
       },
 
       onDeath(p) {
-        koEffects(idx);
+        koEffects(idx, Game.mode === "solo" ? "GAME OVER" : "K.O.");
         if (Game.phase === "attract") {
           later(2.0, () => createMatch("attract"));
+        } else if (Game.mode === "solo") {
+          endSolo();
         } else if (Game.phase === "playing") {
           endMatch(oppIdx);
         }
@@ -174,9 +206,10 @@
     };
   }
 
-  function koEffects(idx) {
+  function koEffects(idx, label) {
     const p = Game.players[idx];
     const rect = Renderer.boardRect(idx);
+    const cell = Renderer.cellSize(idx);
     const cells = [];
     for (let y = Core.HIDDEN_ROWS; y < Core.ROWS; y++) {
       for (let x = 0; x < Core.COLS; x++) {
@@ -186,10 +219,13 @@
         cells.push({ x: s.x, y: s.y, color: cellColorOf(v) });
       }
     }
-    FX.koBlast(rect, cells, CELL);
+    FX.koBlast(rect, cells, cell);
     p.hideBoard = true;
     sfx("ko");
-    FX.banner("K.O.", { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 - 40, size: 120, color: "#ffffff", glow: "#ff3355", dur: 1.8 });
+    FX.banner(label || "K.O.", {
+      x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 - 40,
+      size: Math.min(120, rect.w * 0.34), color: "#ffffff", glow: "#ff3355", dur: 1.8,
+    });
   }
 
   // ====== マッチ生成・進行 ======
@@ -206,11 +242,14 @@
     AudioEngine.setDanger(false);
 
     const seed = (Math.random() * 0x7fffffff) | 0;
-    const sameSeed = mode !== "attract";
+    const sameSeed = mode === "com" || mode === "human";
     const seeds = [seed, sameSeed ? seed : (seed + 0x1234567) | 0];
 
     let controllers, names;
-    if (mode === "com") {
+    if (mode === "solo") {
+      controllers = [new HumanController(0)];
+      names = ["1P"];
+    } else if (mode === "com") {
       controllers = [new HumanController(0), new AIController(Game.difficulty)];
       names = ["1P", "COM·" + AI_DIFFICULTIES[Game.difficulty].name];
     } else if (mode === "human") {
@@ -222,13 +261,15 @@
     }
     Game.names = names;
 
-    Game.players = [0, 1].map((i) => {
-      const p = new Player({ index: i, seed: seeds[i], controller: controllers[i], events: makeEvents(i) });
+    Game.players = controllers.map((c, i) => {
+      const p = new Player({ index: i, seed: seeds[i], controller: c, events: makeEvents(i) });
       p.fxJolt = 0;
       p.fxBorder = 0;
       p.hideBoard = false;
       return p;
     });
+
+    applyLayout();
 
     if (mode === "attract") {
       Game.silent = true;
@@ -250,9 +291,9 @@
     later(0.9, () => {
       FX.banner("WIN!", {
         x: winRect.x + winRect.w / 2, y: winRect.y + winRect.h / 2 - 40,
-        size: 100, rainbow: true, glow: Renderer.LAYOUTS[winnerIdx].accent, dur: 2.0,
+        size: Math.min(100, winRect.w * 0.3), rainbow: true, glow: Renderer.layouts[winnerIdx].accent, dur: 2.0,
       });
-      FX.burst(winRect.x + winRect.w / 2, winRect.y + winRect.h / 2, ["#ffe14d", "#ffffff", Renderer.LAYOUTS[winnerIdx].accent], 90, 600, { life: 1.2, size: 6, sparkRatio: 0.5 });
+      FX.burst(winRect.x + winRect.w / 2, winRect.y + winRect.h / 2, ["#ffe14d", "#ffffff", Renderer.layouts[winnerIdx].accent], 90, 600, { life: 1.2, size: 6, sparkRatio: 0.5 });
     });
     later(2.4, () => {
       AudioEngine.stopBGM();
@@ -263,6 +304,26 @@
       banner.textContent = Game.names[winnerIdx] + " WIN!";
       banner.className = "result-banner " + (winnerIdx === 0 ? "p1" : "p2");
       document.getElementById("result-score").textContent = "★ " + Game.wins[0] + " - " + Game.wins[1] + " ★";
+      show("result");
+    });
+  }
+
+  function endSolo() {
+    Game.phase = "over";
+    later(2.2, () => {
+      AudioEngine.stopBGM();
+      FX.musicOn = false;
+      const p = Game.players[0];
+      const best = bestScore();
+      const isRecord = p.stats.score > best;
+      if (isRecord) saveBestScore(p.stats.score);
+      AudioEngine.sfx(isRecord ? "win" : "lose");
+      const banner = document.getElementById("result-banner");
+      banner.textContent = "GAME OVER";
+      banner.className = "result-banner";
+      document.getElementById("result-score").textContent =
+        "SCORE " + p.stats.score + " ・ " + p.stats.cleared + " LINES" +
+        (isRecord ? " ・ ✨NEW RECORD!✨" : (best > 0 ? " ・ BEST " + best : ""));
       show("result");
     });
   }
@@ -307,6 +368,7 @@
   }
 
   const actions = {
+    "solo": () => startBattle("solo"),
     "vs-com": () => show("difficulty"),
     "vs-human": () => startBattle("human"),
     "controls": () => show("controls"),
@@ -366,7 +428,7 @@
   addEventListener("pointerdown", firstUnlock);
   addEventListener("keydown", firstUnlock);
 
-  // ====== メニュー入力（キーボード / パッド） ======
+  // ====== メニュー入力（キーボード / パッド / タッチポーズ） ======
   function handleMenuInput(ma) {
     if (Game.phase === "playing" && !Game.paused) {
       if (ma.pause) pauseGame();
@@ -387,6 +449,15 @@
     }
   }
 
+  // ====== タッチ操作の表示制御 ======
+  const touchEl = document.getElementById("touch-controls");
+  function updateTouchUI() {
+    const showTc = Input.isTouchDevice() &&
+      (Game.phase === "playing" || Game.phase === "countdown") &&
+      !Game.paused && Game.mode !== "attract";
+    touchEl.classList.toggle("tc-hidden", !showTc);
+  }
+
   // ====== パッド接続表示 ======
   const padStatus = document.getElementById("pad-status");
   let padStatusT = 0;
@@ -395,8 +466,16 @@
     if (padStatusT > 0) return;
     padStatusT = 0.5;
     const n = Input.padCount();
-    padStatus.textContent = n > 0 ? `🎮 コントローラー: ${n}台 接続中` : "🎮 コントローラー: 未接続（接続後にボタンを押してください）";
-    padStatus.classList.toggle("on", n > 0);
+    if (n > 0) {
+      padStatus.textContent = `🎮 コントローラー: ${n}台 接続中`;
+      padStatus.classList.add("on");
+    } else if (Input.isTouchDevice()) {
+      padStatus.textContent = "📱 タッチ操作対応（プレイ中に画面下へボタンが出ます）";
+      padStatus.classList.remove("on");
+    } else {
+      padStatus.textContent = "🎮 コントローラー: 未接続（接続後にボタンを押してください）";
+      padStatus.classList.remove("on");
+    }
   }
 
   // ====== メインループ ======
@@ -410,6 +489,7 @@
     Input.update();
     handleMenuInput(Input.menuActions());
     updatePadStatus(dt);
+    updateTouchUI();
 
     FX.update(dt);
     const hitstopped = FX.hitstopT > 0;
@@ -434,14 +514,17 @@
       }
       if (Game.phase === "playing") {
         Game.matchTime += dt;
-        Game.levelTimer += dt;
-        if (Game.levelTimer >= 30 && Game.level < 12) {
-          Game.levelTimer = 0;
-          Game.level++;
-          Game.players.forEach((p) => p.setLevel(Game.level));
-          sfx("levelup");
-          FX.floatText(W / 2, H / 2 - 120, "SPEED UP!", "#7df9ff", 36);
-          FX.flash("#00f6ff", 0.12, 0.3);
+        // 対戦モードは30秒毎にスピードアップ（ソロは10ライン毎・onClear側）
+        if (Game.mode !== "solo") {
+          Game.levelTimer += dt;
+          if (Game.levelTimer >= 30 && Game.level < 12) {
+            Game.levelTimer = 0;
+            Game.level++;
+            Game.players.forEach((p) => p.setLevel(Game.level));
+            sfx("levelup");
+            FX.floatText(Renderer.W / 2, Renderer.H / 2 - 120, "SPEED UP!", "#7df9ff", 36);
+            FX.flash("#00f6ff", 0.12, 0.3);
+          }
         }
         const danger = Game.players.some((p) => p.danger && !p.dead);
         if (danger) {
