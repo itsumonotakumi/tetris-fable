@@ -15,6 +15,9 @@ html, body {
   font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #app { position: fixed; inset: 0; }
@@ -188,4 +191,104 @@ html, body {
   color: var(--neon-yellow);
   letter-spacing: 0.25em;
   text-shadow: 0 0 16px rgba(255, 225, 77, 0.8);
+  text-align: center;
+  padding: 0 12px;
+}
+
+/* ============ タッチ操作 ============ */
+#touch-controls {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none; /* ボタン以外は下へ素通し */
+}
+#touch-controls.tc-hidden { display: none; }
+
+.tc-btn {
+  pointer-events: auto;
+  position: absolute;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 246, 255, 0.55);
+  background: rgba(8, 14, 44, 0.55);
+  color: #cfefff;
+  font-size: 26px;
+  font-weight: 900;
+  font-family: inherit;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.tc-btn:active, .tc-btn.tc-on {
+  background: rgba(0, 130, 190, 0.65);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 16px rgba(0, 246, 255, 0.9), inset 0 0 14px rgba(0, 246, 255, 0.4);
+  color: #fff;
+}
+
+.tc-cluster { position: absolute; bottom: 0; pointer-events: none; }
+.tc-cluster .tc-btn { position: absolute; }
+
+/* 左クラスタ: 移動 */
+.tc-left { left: calc(10px + env(safe-area-inset-left)); bottom: calc(18px + env(safe-area-inset-bottom)); width: 170px; height: 150px; }
+.tc-left .tc-btn[data-tc="left"]  { left: 0;    bottom: 76px; }
+.tc-left .tc-btn[data-tc="right"] { left: 92px; bottom: 76px; }
+.tc-left .tc-btn[data-tc="soft"]  { left: 46px; bottom: 0; }
+
+/* 右クラスタ: 回転 + ハードドロップ */
+.tc-right { right: calc(10px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); width: 170px; height: 150px; }
+.tc-right .tc-btn[data-tc="ccw"] { right: 92px; bottom: 76px; }
+.tc-right .tc-btn[data-tc="cw"]  { right: 0;    bottom: 76px; }
+.tc-right .tc-btn[data-tc="hard"] {
+  right: 46px; bottom: 0;
+  border-color: rgba(255, 225, 77, 0.7);
+  color: #ffe98a;
+  font-size: 30px;
+}
+.tc-right .tc-btn[data-tc="hard"]:active, .tc-right .tc-btn[data-tc="hard"].tc-on {
+  background: rgba(170, 120, 0, 0.6);
+  border-color: var(--neon-yellow);
+  box-shadow: 0 0 18px rgba(255, 225, 77, 0.95), inset 0 0 14px rgba(255, 225, 77, 0.45);
+}
+
+/* ホールド: 画面中央下 */
+.tc-hold-btn {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 76px; height: 48px;
+  border-radius: 24px;
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  border-color: rgba(194, 56, 255, 0.65);
+  color: #e8b8ff;
+}
+.tc-hold-btn:active, .tc-hold-btn.tc-on {
+  background: rgba(120, 20, 170, 0.6);
+  border-color: #c238ff;
+  box-shadow: 0 0 16px rgba(194, 56, 255, 0.9), inset 0 0 12px rgba(194, 56, 255, 0.4);
+}
+
+/* ポーズ: 右上 */
+.tc-small {
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(10px + env(safe-area-inset-right));
+  width: 44px; height: 44px;
+  font-size: 18px;
+  opacity: 0.8;
+}
+
+@media (max-height: 700px) {
+  .tc-btn { width: 54px; height: 54px; font-size: 22px; }
+  .tc-left, .tc-right { width: 146px; height: 128px; }
+  .tc-left .tc-btn[data-tc="left"]   { bottom: 64px; }
+  .tc-left .tc-btn[data-tc="right"]  { left: 78px; bottom: 64px; }
+  .tc-left .tc-btn[data-tc="soft"]   { left: 39px; }
+  .tc-right .tc-btn[data-tc="ccw"]   { right: 78px; bottom: 64px; }
+  .tc-right .tc-btn[data-tc="cw"]    { bottom: 64px; }
+  .tc-right .tc-btn[data-tc="hard"]  { right: 39px; }
 }

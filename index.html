@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>NEON TETRIS BATTLE — 対戦テトリス</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -17,6 +17,7 @@
       <div class="title-sub">BATTLE</div>
     </div>
     <div class="menu" id="menu-title">
+      <button class="menu-btn" data-action="solo">ひとりでプレイ</button>
       <button class="menu-btn" data-action="vs-com">コンピューターと対戦</button>
       <button class="menu-btn" data-action="vs-human">ふたりで対戦</button>
       <button class="menu-btn" data-action="controls">操作方法</button>
@@ -74,6 +75,17 @@
           <tr><td>START</td><td>ポーズ</td></tr>
         </table>
       </div>
+      <div class="controls-card touch">
+        <h3>📱 スマホ / タブレット（画面下のボタン）</h3>
+        <table>
+          <tr><td>◀ ▶</td><td>左右移動（長押しで連続移動）</td></tr>
+          <tr><td>▼</td><td>ソフトドロップ</td></tr>
+          <tr><td>⤓</td><td>ハードドロップ</td></tr>
+          <tr><td>⟳ / ⟲</td><td>右回転 / 左回転</td></tr>
+          <tr><td>HOLD</td><td>ホールド</td></tr>
+          <tr><td>⏸（右上）</td><td>ポーズ</td></tr>
+        </table>
+      </div>
     </div>
     <div class="menu" id="menu-controls">
       <button class="menu-btn btn-back" data-action="back">もどる</button>
@@ -97,6 +109,22 @@
     <div class="menu" id="menu-result">
       <button class="menu-btn" data-action="rematch">もう一度！</button>
       <button class="menu-btn btn-back" data-action="title">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- タッチ操作（スマホ/タブレットのプレイ中のみ表示） -->
+  <div id="touch-controls" class="tc-hidden">
+    <button id="tc-pause" class="tc-btn tc-small" data-tc="pause">⏸</button>
+    <button class="tc-btn tc-hold-btn" data-tc="hold">HOLD</button>
+    <div class="tc-cluster tc-left">
+      <button class="tc-btn" data-tc="left">◀</button>
+      <button class="tc-btn" data-tc="right">▶</button>
+      <button class="tc-btn tc-soft" data-tc="soft">▼</button>
+    </div>
+    <div class="tc-cluster tc-right">
+      <button class="tc-btn" data-tc="ccw">⟲</button>
+      <button class="tc-btn" data-tc="cw">⟳</button>
+      <button class="tc-btn tc-hard" data-tc="hard">⤓</button>
     </div>
   </div>
 </div>
