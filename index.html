@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON TETRIS BATTLE — 対戦テトリス</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- タイトル画面 -->
+  <div id="screen-title" class="screen active">
+    <div class="title-logo">
+      <div class="title-main">NEON TETRIS</div>
+      <div class="title-sub">BATTLE</div>
+    </div>
+    <div class="menu" id="menu-title">
+      <button class="menu-btn" data-action="vs-com">コンピューターと対戦</button>
+      <button class="menu-btn" data-action="vs-human">ふたりで対戦</button>
+      <button class="menu-btn" data-action="controls">操作方法</button>
+    </div>
+    <div class="hint">↑↓ / 十字キーで選択 ・ Enter / Ⓐ で決定</div>
+    <div class="pad-status" id="pad-status">🎮 コントローラー: 未接続</div>
+  </div>
+
+  <!-- 難易度選択 -->
+  <div id="screen-difficulty" class="screen">
+    <h2 class="screen-title">COMの強さ</h2>
+    <div class="menu" id="menu-difficulty">
+      <button class="menu-btn diff-easy"   data-action="diff-0">やさしい</button>
+      <button class="menu-btn diff-normal" data-action="diff-1">ふつう</button>
+      <button class="menu-btn diff-hard"   data-action="diff-2">つよい</button>
+      <button class="menu-btn diff-oni"    data-action="diff-3">鬼</button>
+      <button class="menu-btn btn-back"    data-action="back">もどる</button>
+    </div>
+  </div>
+
+  <!-- 操作方法 -->
+  <div id="screen-controls" class="screen">
+    <h2 class="screen-title">操作方法</h2>
+    <div class="controls-grid">
+      <div class="controls-card p1">
+        <h3>1P（キーボード）</h3>
+        <table>
+          <tr><td>A / D</td><td>左右移動</td></tr>
+          <tr><td>S</td><td>ソフトドロップ</td></tr>
+          <tr><td>W</td><td>ハードドロップ</td></tr>
+          <tr><td>G</td><td>右回転</td></tr>
+          <tr><td>F</td><td>左回転</td></tr>
+          <tr><td>左Shift / Q</td><td>ホールド</td></tr>
+        </table>
+      </div>
+      <div class="controls-card p2">
+        <h3>2P（キーボード）</h3>
+        <table>
+          <tr><td>← / →</td><td>左右移動</td></tr>
+          <tr><td>↓</td><td>ソフトドロップ</td></tr>
+          <tr><td>↑</td><td>ハードドロップ</td></tr>
+          <tr><td>K / Enter</td><td>右回転</td></tr>
+          <tr><td>L</td><td>左回転</td></tr>
+          <tr><td>右Shift / O</td><td>ホールド</td></tr>
+        </table>
+      </div>
+      <div class="controls-card pad">
+        <h3>🎮 ゲームパッド（1台目=1P / 2台目=2P）</h3>
+        <table>
+          <tr><td>十字キー / 左スティック</td><td>移動・ソフトドロップ</td></tr>
+          <tr><td>十字キー上</td><td>ハードドロップ</td></tr>
+          <tr><td>Ⓐ / Ⓑ</td><td>右回転</td></tr>
+          <tr><td>Ⓧ / Ⓨ</td><td>左回転</td></tr>
+          <tr><td>L / R</td><td>ホールド</td></tr>
+          <tr><td>START</td><td>ポーズ</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="menu" id="menu-controls">
+      <button class="menu-btn btn-back" data-action="back">もどる</button>
+    </div>
+  </div>
+
+  <!-- ポーズ -->
+  <div id="screen-pause" class="screen translucent">
+    <h2 class="screen-title">PAUSE</h2>
+    <div class="menu" id="menu-pause">
+      <button class="menu-btn" data-action="resume">再開</button>
+      <button class="menu-btn" data-action="retry">リトライ</button>
+      <button class="menu-btn btn-back" data-action="title">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- リザルト -->
+  <div id="screen-result" class="screen translucent">
+    <div class="result-banner" id="result-banner">1P WIN!</div>
+    <div class="result-score" id="result-score">★ 0 - 0 ★</div>
+    <div class="menu" id="menu-result">
+      <button class="menu-btn" data-action="rematch">もう一度！</button>
+      <button class="menu-btn btn-back" data-action="title">タイトルへ</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/player.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
