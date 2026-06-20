@@ -3,16 +3,37 @@
 (function (root) {
   "use strict";
 
-  const KEYMAPS = [
-    { // 1P
-      left: ["KeyA"], right: ["KeyD"], soft: ["KeyS"], hard: ["KeyW"],
-      rotCW: ["KeyG"], rotCCW: ["KeyF"], hold: ["ShiftLeft", "KeyQ"],
-    },
-    { // 2P
-      left: ["ArrowLeft"], right: ["ArrowRight"], soft: ["ArrowDown"], hard: ["ArrowUp"],
-      rotCW: ["KeyK", "Enter"], rotCCW: ["KeyL"], hold: ["ShiftRight", "KeyO"],
-    },
-  ];
+  // 左手モード: 移動も操作も左手側（WASD + F/G）。右手はパッド等に空ける従来配置
+  const KM_1P_WASD = {
+    left: ["KeyA"], right: ["KeyD"], soft: ["KeyS"], hard: ["KeyW"],
+    rotCW: ["KeyG"], rotCCW: ["KeyF"], hold: ["ShiftLeft", "KeyQ"],
+  };
+  // 右手モード: 右手の矢印キーで移動、左手の Z/X/C で操作（ひとり/対COM向け）
+  const KM_1P_ARROWS = {
+    left: ["ArrowLeft"], right: ["ArrowRight"], soft: ["ArrowDown"], hard: ["ArrowUp", "Space"],
+    rotCW: ["KeyX"], rotCCW: ["KeyZ"], hold: ["KeyC", "ShiftLeft"],
+  };
+  const KM_2P = {
+    left: ["ArrowLeft"], right: ["ArrowRight"], soft: ["ArrowDown"], hard: ["ArrowUp"],
+    rotCW: ["KeyK", "Enter"], rotCCW: ["KeyL"], hold: ["ShiftRight", "KeyO"],
+  };
+
+  // 複数キーマップを合成（同じアクションのキー候補を統合）
+  function mergeKeymaps() {
+    const out = { left: [], right: [], soft: [], hard: [], rotCW: [], rotCCW: [], hold: [] };
+    for (const km of arguments) {
+      for (const k in out) {
+        for (const code of (km[k] || [])) if (!out[k].includes(code)) out[k].push(code);
+      }
+    }
+    return out;
+  }
+
+  // ひとり/対COM時の1Pは左手モードと右手モードの両方を同時に受け付ける
+  const KM_1P_BOTH = mergeKeymaps(KM_1P_WASD, KM_1P_ARROWS);
+
+  const Keymaps = { p1Wasd: KM_1P_WASD, p1Arrows: KM_1P_ARROWS, p1Both: KM_1P_BOTH, p2: KM_2P, merge: mergeKeymaps };
+  const KEYMAPS = [KM_1P_WASD, KM_2P]; // 既定（対人戦の左右分担）
 
   // 標準ゲームパッド配置
   const PAD = {
@@ -175,9 +196,9 @@
     },
   };
 
-  // 人間プレイヤー用コントローラ
-  function HumanController(playerIdx) {
-    this.keymap = KEYMAPS[playerIdx];
+  // 人間プレイヤー用コントローラ。keymap を渡せば任意のキー配置にできる
+  function HumanController(playerIdx, keymap) {
+    this.keymap = keymap || KEYMAPS[playerIdx];
     this.padSlot = playerIdx;
   }
   HumanController.prototype.poll = function () {
@@ -188,8 +209,8 @@
     // タッチ操作は常に1P扱い
     const tc = this.padSlot === 0 ? Input.touch : null;
     return {
-      left: Input.keyHeld(km.left) || Input.padBtnHeld(gp, [PAD.left]) || ax.x < -AXIS_TH || !!(tc && (tc.left || tc.edges.has("left"))),
-      right: Input.keyHeld(km.right) || Input.padBtnHeld(gp, [PAD.right]) || ax.x > AXIS_TH || !!(tc && (tc.right || tc.edges.has("right"))),
+      left: Input.keyHeld(km.left) || Input.keyEdge(km.left) || Input.padBtnHeld(gp, [PAD.left]) || ax.x < -AXIS_TH || !!(tc && (tc.left || tc.edges.has("left"))),
+      right: Input.keyHeld(km.right) || Input.keyEdge(km.right) || Input.padBtnHeld(gp, [PAD.right]) || ax.x > AXIS_TH || !!(tc && (tc.right || tc.edges.has("right"))),
       soft: Input.keyHeld(km.soft) || Input.padBtnHeld(gp, [PAD.down]) || ax.y > AXIS_TH || !!(tc && (tc.soft || tc.edges.has("soft"))),
       hard: Input.keyEdge(km.hard) || Input.padBtnEdge(gp, [PAD.up]) || !!axEdge.up || !!(tc && tc.edges.has("hard")),
       rotCW: Input.keyEdge(km.rotCW) || Input.padBtnEdge(gp, PAD.rotCW) || !!(tc && tc.edges.has("cw")),
@@ -200,5 +221,6 @@
 
   root.Input = Input;
   root.HumanController = HumanController;
-  if (typeof module !== "undefined" && module.exports) module.exports = { Input, HumanController, KEYMAPS, PAD };
+  root.Keymaps = Keymaps;
+  if (typeof module !== "undefined" && module.exports) module.exports = { Input, HumanController, Keymaps, KEYMAPS, PAD };
 })(typeof window !== "undefined" ? window : globalThis);

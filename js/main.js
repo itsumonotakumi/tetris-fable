@@ -247,13 +247,16 @@
 
     let controllers, names;
     if (mode === "solo") {
-      controllers = [new HumanController(0)];
+      // 1人占有なので左手(WASD)・右手(矢印)どちらの配置でも操作可能
+      controllers = [new HumanController(0, Keymaps.p1Both)];
       names = ["1P"];
     } else if (mode === "com") {
-      controllers = [new HumanController(0), new AIController(Game.difficulty)];
+      // 2Pはキーボードを使わない(COM)ので、1Pは両配置に対応させる
+      controllers = [new HumanController(0, Keymaps.p1Both), new AIController(Game.difficulty)];
       names = ["1P", "COM·" + AI_DIFFICULTIES[Game.difficulty].name];
     } else if (mode === "human") {
-      controllers = [new HumanController(0), new HumanController(1)];
+      // 2人でキーボードを分け合うため、1P=左手(WASD)・2P=矢印で固定
+      controllers = [new HumanController(0, Keymaps.p1Wasd), new HumanController(1, Keymaps.p2)];
       names = ["1P", "2P"];
     } else {
       controllers = [new AIController(2), new AIController(2)];
